@@ -2,6 +2,11 @@ import streamlit as st
 import google.generativeai as genai
 import time
 import os
+import random
+
+# Phrases musulmanes pour varier les réponses
+greetings = ["Assalamu Alaikum", "Wa Alaikum Assalam", "Salam Alaikum", "Marhaba"]
+acknowledgments = ["Barakallahufik", "MashaAllah", "Alhamdulillah", "Jazakallah Khair", "InshaAllah"]
 
 # Configuration de la page pour un look moderne
 st.set_page_config(
@@ -18,7 +23,7 @@ genai.configure(api_key=API_KEY)
 model = genai.GenerativeModel(
     model_name="gemini-2.5-flash",
     system_instruction="""
-    Tu es l'assistant de médiation de NISFI. Ton ton est respectueux, protecteur et profond.
+    Tu es l'assistant de médiation de NISFI. Ton ton est respectueux, protecteur, profond et cool, engageant.
     Tu mènes un entretien de mariage musulman éthique.
     - Commence toujours par Assalamu Alaikum ou des formules similaires.
     - Utilise des expressions musulmanes appropriées comme Barakallahufik, InshaAllah, etc.
@@ -27,6 +32,7 @@ model = genai.GenerativeModel(
     - Ne jamais flirter. Utilise 'vous'.
     - D'abord, collecte les informations personnelles selon les catégories fournies.
     - Une fois les informations collectées, passe aux modules : Intention -> Psychologie -> Vie conjugale -> Physique (pudique).
+    - Utilise des emojis occasionnels pour rendre la conversation plus cool et engageante, sans en abuser.
     """
 )
 
@@ -116,9 +122,9 @@ st.markdown("""
         box-shadow: 0 1px 2px rgba(0,0,0,0.1);
     }
 
-    /* Bulles de l'Utilisateur (Messenger Style - Bleu/Vert NISFI) */
+    /* Bulles de l'Utilisateur (Messenger Style - Cool Green) */
     .user-msg {
-        background-color: #0084FF; /* Bleu Messenger par défaut, on peut mettre du vert #2e7d32 */
+        background-color: #25D366; /* Vert WhatsApp pour un look cool */
         color: white;
         padding: 12px 16px;
         border-radius: 18px;
@@ -154,8 +160,9 @@ st.markdown("<p style='text-align: center; color: #65676B; font-size: 0.9em;'>Vo
 
 # Initialisation de l'historique et états
 if "messages" not in st.session_state:
+    greeting = random.choice(greetings)
     st.session_state.messages = [
-        {"role": "assistant", "content": "Assalamu Alaikum. Je suis votre médiateur NISFI. Pour commencer, êtes-vous une sœur ou un frère cherchant un mariage éthique ?"}
+        {"role": "assistant", "content": f"{greeting}. Je suis votre médiateur NISFI. Pour commencer, êtes-vous une sœur ou un frère cherchant un mariage éthique ?"}
     ]
 if "info_collection_done" not in st.session_state:
     st.session_state.info_collection_done = False
@@ -197,7 +204,8 @@ if user_input:
                 st.session_state.gender = "brother"
                 st.session_state.question_list = questions_common + questions_brother + questions_contact
             else:
-                st.session_state.messages.append({"role": "assistant", "content": "Assalamu Alaikum. Veuillez préciser si vous êtes une sœur ou un frère. Barakallahufik."})
+                greeting = random.choice(greetings)
+                st.session_state.messages.append({"role": "assistant", "content": f"{greeting}. Veuillez préciser si vous êtes une sœur ou un frère. Barakallahufik."})
                 st.rerun()
         else:
             # Stocker la réponse
@@ -217,10 +225,12 @@ if user_input:
             else:
                 next_q = st.session_state.question_list[st.session_state.current_question]
                 question_text = next_q['question']
-                if next_q['type'] == 'list':
-                    options = ", ".join(next_q['options'])
-                    question_text += f" ({options})"
-                st.session_state.messages.append({"role": "assistant", "content": f"Assalamu Alaikum. {question_text}"})
+                ack = random.choice(acknowledgments)
+                interaction = ""
+                if current_q['question'] == "Quel est votre prénom ou kunya ?":
+                    interaction = f"Ravi de vous connaître, {user_input}. "
+                content = f"{ack}. {interaction}Pourriez-vous me dire {question_text.lower()} ?"
+                st.session_state.messages.append({"role": "assistant", "content": content})
         
         st.rerun()
     else:
