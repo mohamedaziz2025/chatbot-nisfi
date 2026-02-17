@@ -1,46 +1,40 @@
 import streamlit as st
 import google.generativeai as genai
 import time
-import os
-import random
-import re
-import json
 
 # --- CONFIGURATION DE L'API ---
-API_KEY = "" # Clé API gérée par l'environnement
+# Note : La clé API est gérée automatiquement par l'environnement
+API_KEY = "" 
 genai.configure(api_key=API_KEY)
 
-# Configuration du modèle
+# Configuration du modèle pour un ton plus naturel et humain
 generation_config = {
-    "temperature": 0.85, # Augmentation légère pour plus de naturel
+    "temperature": 0.9,
     "top_p": 0.95,
-    "max_output_tokens": 2048,
+    "max_output_tokens": 1024,
 }
 
-# Instruction système renforcée pour un aspect 100% humain
 SYSTEM_PROMPT = """
-Tu es le Médiateur Expert de NISFI. 
-IMPORTANT : Tu ne dois JAMAIS agir ou répondre comme un robot, un assistant virtuel ou une IA générique. 
+Tu es le Médiateur Expert de NISFI, un conseiller matrimonial musulman sage et bienveillant.
+TON BUT : Mener un entretien fluide pour apprendre à connaître l'utilisateur.
 
-DIRECTIVES DE PERSONNALITÉ :
-1. HUMANITÉ : Parle comme un grand frère ou un conseiller sage qui a de l'expérience de vie. Tes réponses doivent être organiques, chaleureuses et authentiques.
-2. ADIEU LE STYLE ROBOTIQUE : Bannis les expressions de type "En tant qu'intelligence artificielle", "Je suis programmé pour", ou les listes à puces systématiques. 
-3. ÉCOUTE ACTIVE : Ne te contente pas de valider la réponse. Montre que tu as compris l'essence de ce que l'utilisateur a dit. Si l'utilisateur dit qu'il vient de Paris, tu peux dire "Ah, la capitale, une ville pleine de dynamisme, j'espère que vous y trouvez votre sérénité."
-4. LANGAGE NATUREL : Utilise des transitions fluides. Tes commentaires doivent donner l'impression d'une vraie rencontre humaine.
-5. ÉTHIQUE & BIENVEILLANCE : Intègre des invocations (MashaAllah, Barakallahufik) comme le ferait un conseiller musulman bienveillant, de manière fluide dans le texte.
-6. ACCORD DE GENRE : Sois irréprochable sur les accords (Frère/Sœur).
-7. CONCISION HUMAINE : Ne sois pas bavard. 2 à 3 phrases maximum, comme dans une vraie discussion instantanée.
+RÈGLES D'OR :
+1. NE JAMAIS se répéter. Si tu n'as pas de nouvelle instruction, encourage l'utilisateur à répondre à la question posée.
+2. TON HUMAIN : Pas de listes, pas de "En tant qu'IA". Parle comme un grand frère.
+3. ÉCOUTE ACTIVE : Rebondis brièvement sur ce que l'utilisateur dit (ex: "MashaAllah, 30 ans est un bel âge pour construire un foyer") avant de passer à la suite.
+4. ISLAM : Utilise des formules comme 'Barakallahou fik', 'Qu'Allah vous facilite' de façon naturelle.
+5. CONCISION : 2-3 phrases maximum par réponse.
 """
 
-# Utilisation du modèle avec réflexion pour une analyse plus "humaine"
+# Utilisation du modèle flash pour la rapidité et éviter les blocages
 model = genai.GenerativeModel(
     model_name="gemini-2.0-flash-thinking-exp-01-21",
     generation_config=generation_config,
     system_instruction=SYSTEM_PROMPT
 )
 
-# --- QUESTIONS PRÉDÉFINIES (Base) ---
-QUESTIONS_DE_BASE = [
+# --- QUESTIONS ---
+QUESTIONS = [
     {"id": "genre", "q": "Pour commencer cette belle étape, êtes-vous un frère ou une sœur ?"},
     {"id": "prenom", "q": "C'est un plaisir de vous accueillir. Quel est votre prénom ou votre Kunya ?"},
     {"id": "age", "q": "Et quel âge avez-vous ?"},
@@ -49,128 +43,85 @@ QUESTIONS_DE_BASE = [
     {"id": "enfants", "q": "Avez-vous des enfants ?"},
     {"id": "pratique", "q": "Comment décririez-vous votre cheminement et votre niveau de pratique religieuse ?"},
     {"id": "vision", "q": "Quelle est votre vision du mariage et de la vie de famille en quelques mots ?"},
-    {"id": "contact", "q": "Enfin, quelle est votre adresse e-mail pour que nous puissions assurer le suivi de votre profil ?"}
+    {"id": "contact", "q": "Enfin, quelle est votre adresse e-mail pour le suivi ?"}
 ]
 
-# --- INTERFACE & STYLE ---
-st.set_page_config(page_title="NISFI AI", page_icon="🌙", layout="centered")
+# --- INTERFACE ---
+st.set_page_config(page_title="NISFI AI", page_icon="🌙")
 
 st.markdown("""
     <style>
-    .stApp { background-color: #fcfcfc; }
-    .chat-bubble {
-        padding: 14px 20px;
-        border-radius: 22px;
-        margin-bottom: 15px;
-        max-width: 80%;
-        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-        line-height: 1.5;
-    }
-    .bot-msg { 
-        background-color: #ffffff; 
-        color: #2c3e50; 
-        border: 1px solid #f0f0f0;
-        align-self: flex-start; 
-        border-bottom-left-radius: 4px;
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.02);
-    }
-    .user-msg { 
-        background: linear-gradient(135deg, #1e7e34, #28a745); 
-        color: white; 
-        margin-left: auto; 
-        border-bottom-right-radius: 4px;
-        box-shadow: 0 4px 12px rgba(40, 167, 69, 0.2);
-    }
+    .stApp { background-color: #f8f9fa; }
+    .chat-bubble { padding: 15px; border-radius: 15px; margin-bottom: 10px; font-family: sans-serif; }
+    .bot-msg { background-color: white; border: 1px solid #ddd; align-self: flex-start; }
+    .user-msg { background-color: #1e7e34; color: white; align-self: flex-end; text-align: right; margin-left: 20%; }
     </style>
 """, unsafe_allow_html=True)
 
-# --- LOGIQUE DE SESSION ---
+# --- INITIALISATION ---
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "bot", "content": "Assalamu Alaikum wa Rahmatullah. Je suis votre conseiller NISFI. Je suis ravi de vous accompagner pour cette étape importante."}]
-
+    st.session_state.messages = []
 if "q_idx" not in st.session_state:
     st.session_state.q_idx = 0
-
+if "gender" not in st.session_state:
+    st.session_state.gender = None
 if "chat_session" not in st.session_state:
     st.session_state.chat_session = model.start_chat(history=[])
 
-if "gender" not in st.session_state:
-    st.session_state.gender = None 
+# --- LOGIQUE ---
+st.markdown("<h2 style='text-align: center; color: #1e7e34;'>🌙 Médiation NISFI</h2>", unsafe_allow_html=True)
 
-if "complete" not in st.session_state:
-    st.session_state.complete = False
+# Affichage des messages
+for msg in st.session_state.messages:
+    cl = "user-msg" if msg["role"] == "user" else "bot-msg"
+    st.markdown(f"<div class='chat-bubble {cl}'>{msg['content']}</div>", unsafe_allow_html=True)
 
-# --- FONCTION D'ACCORD DES QUESTIONS ---
-def get_adapted_question(index, gender):
-    q_data = QUESTIONS_DE_BASE[index]
-    text = q_data["q"]
-    if gender == "soeur":
-        text = text.replace("marié", "mariée").replace("prêt", "prête").replace("divorcé", "divorcée").replace("veuf", "veuve")
-    return text
+# Première question automatique
+if st.session_state.q_idx == 0 and not st.session_state.messages:
+    welcome = "Assalamu Alaikum wa Rahmatullah. Je suis votre conseiller NISFI. " + QUESTIONS[0]["q"]
+    st.session_state.messages.append({"role": "bot", "content": welcome})
+    st.rerun()
 
-# --- AFFICHAGE ---
-st.markdown("<h2 style='text-align: center; color: #1e7e34; font-weight: 300;'>🌙 NISFI Médiation</h2>", unsafe_allow_html=True)
-
-chat_container = st.container()
-with chat_container:
-    for msg in st.session_state.messages:
-        div_class = "bot-msg" if msg["role"] == "bot" else "user-msg"
-        st.markdown(f"<div class='chat-bubble {div_class}'>{msg['content']}</div>", unsafe_allow_html=True)
-
-# --- LOGIQUE CONVERSATIONNELLE ---
-if not st.session_state.complete:
-    current_q_raw = QUESTIONS_DE_BASE[st.session_state.q_idx]["q"]
-    if st.session_state.messages[-1]["content"] != current_q_raw and st.session_state.q_idx == 0:
-        st.session_state.messages.append({"role": "bot", "content": current_q_raw})
-        st.rerun()
-
-user_input = st.chat_input("Échangez avec votre conseiller...")
+# Entrée utilisateur
+user_input = st.chat_input("Votre réponse...")
 
 if user_input:
+    # Ajouter le message utilisateur à l'écran
     st.session_state.messages.append({"role": "user", "content": user_input})
     
-    # Détection du genre
-    if st.session_state.q_idx == 0 and st.session_state.gender is None:
-        if any(word in user_input.lower() for word in ["soeur", "sœur", "femme", "fille"]):
+    # Identification du genre à la première question
+    if st.session_state.q_idx == 0:
+        if any(x in user_input.lower() for x in ["soeur", "sœur", "femme"]):
             st.session_state.gender = "soeur"
         else:
             st.session_state.gender = "frere"
-    
-    current_question_id = QUESTIONS_DE_BASE[st.session_state.q_idx]["id"]
-    
-    # Logique de saut (Célibataire -> pas de question enfants)
-    skip_next = False
-    if current_question_id == "situation":
-        if any(word in user_input.lower() for word in ["célibataire", "celibataire", "jamais marié", "jamais mariée"]):
-            skip_next = True
 
+    # Préparation de la suite
+    current_id = QUESTIONS[st.session_state.q_idx]["id"]
     st.session_state.q_idx += 1
     
-    if skip_next and st.session_state.q_idx < len(QUESTIONS_DE_BASE):
-        if QUESTIONS_DE_BASE[st.session_state.q_idx]["id"] == "enfants":
-            st.session_state.q_idx += 1
-
-    if st.session_state.q_idx < len(QUESTIONS_DE_BASE):
-        next_q = get_adapted_question(st.session_state.q_idx, st.session_state.gender)
-        accord_instruction = "L'utilisateur est une Sœur." if st.session_state.gender == "soeur" else "L'utilisateur est un Frère."
-        
-        prompt = f"""(Note pour ton attitude : {accord_instruction} Réagis comme un humain, évite toute tournure de phrase informatique ou de robot).
-        Réponse reçue pour '{current_question_id}' : '{user_input}'.
-        Partage une brève réflexion bienveillante sur cette réponse pour montrer que tu écoutes vraiment, puis amène naturellement la question suivante : '{next_q}'."""
+    # Gestion de la fin ou de la question suivante
+    if st.session_state.q_idx < len(QUESTIONS):
+        next_q = QUESTIONS[st.session_state.q_idx]["q"]
+        # Adaptation du genre
+        if st.session_state.gender == "soeur":
+            next_q = next_q.replace("marié", "mariée").replace("divorcé", "divorcée")
+            
+        prompt = f"L'utilisateur (un {st.session_state.gender}) a répondu '{user_input}' à la question sur son {current_id}. Commente brièvement avec empathie et pose la question suivante : {next_q}"
     else:
-        prompt = "L'entretien est fini. Conclus de manière très humaine, avec une invocation sincère pour la réussite de sa recherche."
-        st.session_state.complete = True
+        prompt = f"L'entretien est terminé. L'utilisateur a fini de répondre. Remercie-le chaleureusement et conclus avec une dou'a."
 
-    try:
-        response = st.session_state.chat_session.send_message(prompt)
-        st.session_state.messages.append({"role": "bot", "content": response.text})
-    except:
-        st.session_state.messages.append({"role": "bot", "content": "Qu'Allah vous facilite dans cette noble démarche. Continuons ensemble."})
+    # Appel API avec gestion d'erreur améliorée
+    with st.spinner("Réflexion de votre conseiller..."):
+        try:
+            response = st.session_state.chat_session.send_message(prompt)
+            bot_text = response.text
+        except Exception as e:
+            # Fallback intelligent si l'API échoue au lieu de boucler
+            bot_text = "Barakallahou fik pour votre réponse. Continuons notre échange, c'est très enrichissant. "
+            if st.session_state.q_idx < len(QUESTIONS):
+                bot_text += QUESTIONS[st.session_state.q_idx]["q"]
+
+        st.session_state.messages.append({"role": "bot", "content": bot_text})
     
     st.rerun()
-
-if st.session_state.complete:
-    st.balloons()
-    if st.button("🔄 Commencer un nouvel échange"):
-        st.session_state.clear()
-        st.rerun()
