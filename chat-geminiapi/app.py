@@ -4,7 +4,7 @@ import time
 
 # --- CONFIGURATION DE L'API ---
 # Note : La clé API est gérée automatiquement par l'environnement
-API_KEY = "" 
+API_KEY = "AIzaSyBf8xwyfr4KoINWtxDME_e3hqQ8TA1Hcjc" 
 genai.configure(api_key=API_KEY)
 
 # Configuration du modèle pour un ton plus naturel et humain
@@ -125,3 +125,4 @@ if user_input:
         st.session_state.messages.append({"role": "bot", "content": bot_text})
     
     st.rerun()
+
